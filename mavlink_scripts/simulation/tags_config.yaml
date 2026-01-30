@@ -1,0 +1,64 @@
+propagation_model:
+  detection_threshold: -80.0
+  noise_std: 4.0
+  path_loss_exponent: 2.5
+tags:
+# Cluster 1: Southwest (~50m from home)
+- altitude: 1.5
+  latitude: 47.397600
+  longitude: 8.545700
+  tag_id: TAG_001
+  tx_power: -45.0
+- altitude: 1.5
+  latitude: 47.397550
+  longitude: 8.545750
+  tag_id: TAG_002
+  tx_power: -45.0
+
+# Cluster 2: Northwest (~60m from home)
+- altitude: 1.5
+  latitude: 47.398400
+  longitude: 8.545700
+  tag_id: TAG_003
+  tx_power: -45.0
+- altitude: 1.5
+  latitude: 47.398450
+  longitude: 8.545750
+  tag_id: TAG_004
+  tx_power: -45.0
+
+# Cluster 3: Southeast (~50m from home)
+- altitude: 1.5
+  latitude: 47.397600
+  longitude: 8.546600
+  tag_id: TAG_005
+  tx_power: -45.0
+- altitude: 1.5
+  latitude: 47.397550
+  longitude: 8.546650
+  tag_id: TAG_006
+  tx_power: -45.0
+
+# Cluster 4: Northeast (~55m from home)
+- altitude: 1.5
+  latitude: 47.398400
+  longitude: 8.546600
+  tag_id: TAG_007
+  tx_power: -45.0
+
+# Isolated tags (moderate distance)
+- altitude: 1.5
+  latitude: 47.397300
+  longitude: 8.546164
+  tag_id: TAG_008
+  tx_power: -45.0
+- altitude: 1.5
+  latitude: 47.398600
+  longitude: 8.546164
+  tag_id: TAG_009
+  tx_power: -45.0
+- altitude: 1.5
+  latitude: 47.397971
+  longitude: 8.547000
+  tag_id: TAG_010
+  tx_power: -45.0

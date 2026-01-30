@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent BLE Scanner</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --brand-red: #d2051e;
+            --brand-dark-red: #a30013;
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        .header {
+            padding: 20px;
+            border-bottom: 2px solid var(--brand-red);
+            background: linear-gradient(180deg, rgba(210, 5, 30, 0.1) 0%, rgba(30, 30, 30, 0) 100%);
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-panel {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        .status-item {
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid var(--brand-red);
+        }
+
+        .status-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .status-value {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .tag-list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            padding: 10px 10px 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .tag-card {
+            background-color: #252525;
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tag-card:hover {
+            border-color: var(--brand-red);
+            background-color: #2a2a2a;
+        }
+
+        .tag-card.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background-color: var(--brand-red);
+        }
+
+        .tag-id {
+            font-weight: 600;
+            color: white;
+        }
+
+        .tag-rssi {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .tag-signal-bar {
+            height: 4px;
+            background-color: #444;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .tag-signal-fill {
+            height: 100%;
+            background-color: var(--brand-red);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* Map Area */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            background-color: #1a1a1a;
+        }
+
+        /* Overlays */
+        .overlay-stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(30, 30, 30, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            min-width: 200px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .stat-row:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--panel-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--brand-red);
+        }
+
+        .connection-dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            display: inline-block;
+        }
+
+        .connected {
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="header">
+            <h1>
+                <span style="color:var(--brand-red)">■</span> BLE SCANNER
+            </h1>
+        </div>
+
+        <div class="status-panel">
+            <div class="status-item">
+                <div class="status-label">System</div>
+                <div class="status-value">
+                    <span id="conn-dot" class="connection-dot"></span> <span id="conn-text">Offline</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Mode</div>
+                <div class="status-value" id="mode-text">INIT</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Tags Found</div>
+                <div class="status-value" style="color:var(--brand-red)" id="tags-count">0 / 0</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Sim Time</div>
+                <div class="status-value" id="sim-time">00:00</div>
+            </div>
+        </div>
+
+        <div class="tag-list-container">
+            <div class="section-title">
+                <span>Active Assets</span>
+                <span style="font-size: 0.7rem; opacity: 0.5;">LIVE FEED</span>
+            </div>
+            <div id="tag-list">
+                <!-- Tags will be injected here -->
+                <div style="padding:20px; text-align:center; color:#555; font-size:0.9rem;">
+                    Waiting for mission start...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div class="map-container">
+        <div id="map"></div>
+
+        <div class="overlay-stats">
+            <div class="stat-row">
+                <span class="status-label">Latitude</span>
+                <span id="drone-lat">--.------</span>
+            </div>
+            <div class="stat-row">
+                <span class="status-label">Longitude</span>
+                <span id="drone-lon">--.------</span>
+            </div>
+            <div class="stat-row">
+                <span class="status-label">Altitude</span>
+                <span id="drone-alt">-- m</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // --- Configuration ---
+        const WS_URL = 'ws://localhost:8765';
+        const HOME_LAT = 47.397971;
+        const HOME_LON = 8.546164;
+
+        // --- State ---
+        const tags = {}; // Store tag data
+        let droneMarker = null;
+        let dronePath = null;
+        let pathPoints = [];
+
+        // --- Map Initialization ---
+        const map = L.map('map').setView([HOME_LAT, HOME_LON], 19);
+
+        // Dark Mode Tiles (CartoDB Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 21
+        }).addTo(map);
+
+        // Icons
+        const droneIcon = L.divIcon({
+            html: '<div style="color:#d2051e; font-size:24px; text-shadow:0 0 10px #d2051e;">✈</div>',
+            className: 'drone-icon',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        // --- WebSocket Logic ---
+        const statusDot = document.getElementById('conn-dot');
+        const statusText = document.getElementById('conn-text');
+
+        function connect() {
+            const ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                console.log('Connected to Dashboard Server');
+                statusDot.classList.add('connected');
+                statusText.innerText = 'Online';
+                statusText.style.color = '#10b981';
+            };
+
+            ws.onclose = () => {
+                console.log('Disconnected');
+                statusDot.classList.remove('connected');
+                statusText.innerText = 'Offline';
+                statusText.style.color = '#a0a0a0';
+                setTimeout(connect, 2000); // Reconnect
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleData(data);
+            };
+        }
+
+        function handleData(data) {
+            // 1. Update System Status
+            if (data.mode) document.getElementById('mode-text').innerText = data.mode;
+            if (data.time) document.getElementById('sim-time').innerText = data.time;
+
+            // 2. Update Drone Position
+            if (data.position) {
+                const lat = data.position.lat;
+                const lon = data.position.lon;
+                const alt = data.position.alt;
+
+                document.getElementById('drone-lat').innerText = lat.toFixed(6);
+                document.getElementById('drone-lon').innerText = lon.toFixed(6);
+                document.getElementById('drone-alt').innerText = alt.toFixed(1);
+
+                // Update Map Marker
+                if (!droneMarker) {
+                    droneMarker = L.marker([lat, lon], { icon: droneIcon }).addTo(map);
+                    pathPoints.push([lat, lon]);
+                    dronePath = L.polyline(pathPoints, { color: '#d2051e', weight: 2, opacity: 0.7 }).addTo(map);
+                } else {
+                    droneMarker.setLatLng([lat, lon]);
+                    pathPoints.push([lat, lon]);
+                    dronePath.setLatLngs(pathPoints);
+                }
+            }
+
+            // 3. Update Tags
+            if (data.tags) {
+                updateTagList(data.tags);
+                updateTagMarkers(data.tags);
+
+                // Update Count
+                // Use backend provided stats if available, otherwise fallback to live count
+                if (data.stats) {
+                    document.getElementById('tags-count').innerText = `${data.stats.found} / ${data.stats.total}`;
+                } else {
+                    const found = Object.keys(data.tags).length;
+                    document.getElementById('tags-count').innerText = `${found}`;
+                }
+            }
+        }
+
+        function updateTagList(newTags) {
+            const container = document.getElementById('tag-list');
+
+            // Clear if it's the placeholders
+            if (container.children.length > 0 && container.children[0].innerText.includes('Waiting')) {
+                container.innerHTML = '';
+            }
+
+            // Backend sends tags as a list of objects [{id, rssi, est_lat, est_lon}, ...]
+            newTags.forEach(tag => {
+                const id = tag.id;
+
+                // Check if element exists
+                let el = document.getElementById(`tag-card-${id}`);
+
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = `tag-card-${id}`;
+                    el.className = 'tag-card';
+                    el.onclick = () => focusTag(id);
+                    container.prepend(el); // Add new to top
+                }
+
+                // Calculate signal width (RSSI -100 to -40)
+                const rssi = tag.rssi;
+                const percent = Math.min(100, Math.max(0, (rssi + 100) * 1.6));
+
+                el.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span class="tag-id">${id}</span>
+                        <span class="tag-rssi">${rssi.toFixed(1)} dBm</span>
+                    </div>
+                    <div class="tag-signal-bar">
+                        <div class="tag-signal-fill" style="width: ${percent}%"></div>
+                    </div>
+                    <div style="font-size:0.75rem; color:#666; margin-top:6px;">
+                        Pos: ${tag.est_lat.toFixed(5)}, ${tag.est_lon.toFixed(5)}
+                    </div>
+                `;
+            });
+        }
+
+        const markers = {};
+
+        function updateTagMarkers(newTags) {
+            newTags.forEach(tag => {
+                const id = tag.id;
+
+                // Only plot if we have a valid estimate (non-zero)
+                if (Math.abs(tag.est_lat) < 0.0001 && Math.abs(tag.est_lon) < 0.0001) return;
+
+                if (!markers[id]) {
+                    // Create marker
+                    const icon = L.divIcon({
+                        html: `<div style="background-color:#10b981; width:12px; height:12px; border-radius:50%; box-shadow:0 0 10px #10b981;"></div>`,
+                        className: 'tag-marker',
+                        iconSize: [12, 12]
+                    });
+                    markers[id] = L.marker([tag.est_lat, tag.est_lon], { icon: icon }).addTo(map)
+                        .bindPopup(`<b>${id}</b><br>Strongest RSSI: ${tag.rssi}`);
+                } else {
+                    // Update position (it refines over time)
+                    markers[id].setLatLng([tag.est_lat, tag.est_lon]);
+                }
+            });
+        }
+
+        function focusTag(id) {
+            if (markers[id]) {
+                const latLng = markers[id].getLatLng();
+                map.flyTo(latLng, 20);
+                markers[id].openPopup();
+
+                // Highlight card
+                document.querySelectorAll('.tag-card').forEach(c => c.classList.remove('active'));
+                document.getElementById(`tag-card-${id}`).classList.add('active');
+            }
+        }
+
+        // Start connection
+        connect();
+
+    </script>
+</body>
+
+</html>
