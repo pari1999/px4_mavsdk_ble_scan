@@ -1,6 +1,12 @@
 # PX4 BLE Scan Project
 
-This repository contains the autonomous mission control system for Scanning BLE Tags , built on top of the PX4 flight stack and MAVSDK.
+This repository implements an autonomous mission control system for scanning, detecting, and localizing Bluetooth Low Energy (BLE) tags using the PX4 flight stack and MAVSDK.
+
+### 🎯 Project Utility
+This system provides a foundation for:
+*   **Search and Rescue (SAR)**: Locating beacons or missing persons carrying BLE devices.
+*   **Asset Tracking**: Autonomous inventory scanning in large warehouses or outdoor yards.
+*   **Algorithm Development**: A safe, simulation-first environment for testing complex path planning and localization logic.
 
 ## 📂 Repository Structure
 
@@ -38,10 +44,17 @@ cd px4_mavsdk_ble_scan
 Open a terminal and launch the PX4 simulation:
 ```bash
 cd PX4-Autopilot
-make px4_sitl gazebo
+make px4_sitl gz_500
 ```
 
-#### Step B: Run the Mission
+
+#### Step B: Spawn Tags
+Open a new terminal and run the tag spawning script:
+```bash
+python3 mavlink_scripts/simulation/spawn_tag_markers.py
+```
+
+#### Step C: Run the Mission
 Open a new terminal and run main mission script:
 ```bash
 python3 mavlink_scripts/core/intelligent_mission.py
@@ -49,10 +62,43 @@ python3 mavlink_scripts/core/intelligent_mission.py
 
 ## 🧠 System Overview
 The system implements an "Intelligent Mission" controller that:
-1.  **Takes off** to a safe scanning altitude.
-2.  **Explores** the area using a Gaussian Process (GP) to predict finding new tags.
-3.  **Localizes** detected Bluetooth tags using a Particle Filter.
-4.  **Returns** to launch once all tags are found or time expires.
+
+*   **Predictive Exploration**: Uses a Gaussian Process (GP) to model signal uncertainty and guide the drone to areas with the highest probability of tag discovery.
+*   **Precision Localization**: A Particle Filter integrates noisy RSSI (signal strength) data to converge on the exact coordinates of static BLE tags.
+*   **Simulation-First Design**: Full integration with Gazebo (GZ) via the PX4 SITL stack.
+
+### System Architecture
+
+```mermaid
+graph TD
+    subgraph Onboard_Compute [Onboard Computer]
+        Mission[Mission Controller] -->|Waypoints/Velocity| MAVSDK
+        MAVSDK <-->|Mavlink| PX4[PX4 Autopilot]
+        
+        Mission -->|Query| BLE_Sim[BLE Simulator]
+        BLE_Sim -->|RSSI| Mission
+        
+        Mission -->|Observations| Planner[Gaussian Process Planner]
+        Planner -->|Next Waypoint| Mission
+        
+        Mission -->|RSSI + Pos| PF[Particle Filter]
+        PF -->|Tag Location Est| Mission
+        
+        Mission -->|State| Dashboard[Web Dashboard]
+    end
+    
+    subgraph Simulation
+        PX4 <--> Simulator[Gazebo / JMavSim]
+    end
+```
+
+### Visual Demonstrations
+
+![Belief Map](mavlink_scripts/belief_map.png)
+*Gaussian Process Belief Map*
+
+![Particle Filter](mavlink_scripts/ParticleFilter.png)
+*Particle Filter Localization*
 
 ## 🛠 Git Management
 - **PX4 Updates**: The `PX4-Autopilot` folder is a submodule. It points to a specific commit of the upstream repo. To update it:
